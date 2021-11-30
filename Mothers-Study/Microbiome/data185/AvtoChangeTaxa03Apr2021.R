@@ -1,0 +1,222 @@
+# Example Code for Microbiome Analysis in MM
+# Tanya L Alderete
+# June 29, 2020
+
+# Clear out working space
+rm(list=ls())
+# Load required pacakges 
+library(tidyverse)
+library(withr)
+# Set working directories
+meta <- "/Volumes/ADORLab/Master Mothers Milk Data Folder/Input/"
+meta2 <- "/Volumes/ADORLab/__Users/ditr2320/datasets/"
+meta3 <- "/Volumes/ADORLab/HEI Study/16S Data/MM 16S Processed Files for Mom and Infants 05Jan21/alpha diversity"
+meta4 <- "/Users/DidiTrifonova/Documents/GitHub/Git_ADOR/Mothers-Milk-Diet-Score-and-BMI"
+meta5 <- "/Volumes/ADORLab/HEI Study/16S Data/MM 16S Processed Files for Mom and Infants 05Jan21/taxonomy/"
+
+# Read in data new metadata (UPDATED)
+#dataSet <- read.delim(paste0(meta2,"dataset01Apr2021.txt"),na = c("NA", "don't know", "","    .","Missing: Not provided",999.00))
+dataSet <- read.delim(paste0(meta2,"longData10May2021.txt"), header=TRUE)
+
+# Create susbets of data based on timepoint (visit number)
+subset1m <- dataSet[dataSet$timepoint %in% "1",]
+subset6m <- dataSet[dataSet$timepoint %in% "6",]
+
+subset1m <- subset1m %>% select(- c(SES_index_final, day1_metscore, day2_metscore, day3_metscore, exercise))
+subset1m %>% summarise_all((funs(sum(is.na(.))))) 
+#choose one 
+dataSet1m <- subset1m
+#dataSet1m <- na.omit(subset1m)
+
+subset6m <- subset6m %>% select(- c(SES_index_final, day1_metscore, day2_metscore, day3_metscore, exercise))
+subset6m %>% summarise_all((funs(sum(is.na(.))))) 
+#choose one 
+dataSet6m <- subset6m
+#dataSet6m <- na.omit(subset6m)
+
+dataSet1m <- dataSet1m %>% filter(dyad_id %in% dataSet6m$dyad_id)
+dataSet6m <- dataSet6m %>% filter(dyad_id %in% dataSet1m$dyad_id)
+
+dataSetAv <- dataSet1m %>% select(c(1:3), SES_r)
+dataSetAv$timepoint <- "average"
+dataSetAv$mother_age <- (dataSet6m$mother_age + dataSet1m$mother_age)/2
+dataSetAv$DII_Mom <- (dataSet6m$DII_Mom + dataSet1m$DII_Mom)/2 
+dataSetAv$MDS_Mom <- (dataSet6m$MDS_Mom + dataSet1m$MDS_Mom)/2 
+dataSetAv$HEI2015_TOTAL_SCORE_Mom <- (dataSet6m$HEI2015_TOTAL_SCORE_Mom + dataSet1m$HEI2015_TOTAL_SCORE_Mom)/2 
+dataSetAv$exercise_r <- (dataSet6m$exercise_r + dataSet1m$exercise_r)/2 
+dataSetAv$mom_BMI <- (dataSet6m$mom_BMI + dataSet1m$mom_BMI)/2 
+dataSetAv$m_ener_Mom <- (dataSet6m$m_ener_Mom + dataSet1m$m_ener_Mom)/2 
+
+#TESTING WHICH COLUMNS HAVE NA VALUES AND HOW MANY
+#dataSet %>% summarise_all((funs(sum(is.na(.))))) 
+
+########### ########### ########### ########### ########### ########### ########### ########### 
+# Regression loop for obtaining infant gut microbiota data at baseline
+########### ########### ########### ########### ########### ########### ########### ########### 
+
+# Each outcome of interest
+variableList <- c("DII_Mom","MDS_Mom","HEI2015_TOTAL_SCORE_Mom")
+#variableList <- c("DII_Mom_baseline","HEI2015_TOTAL_SCORE_Mom_baseline","MDS_baseline")
+
+# Diversity and each taxanomic level
+taxaLevels <- c("level2","level3","level4","level5","level6")
+#taxaLevels <- c("level2")
+
+# Start of loop for obtaining microbiota data
+for(taxa in taxaLevels)
+{
+  taxaTable <- read.delim(paste0(meta5,"mm_150bp_deblur_sepp_noMit_noChl_rmsingletons_",taxa,".txt",sep=""),header=TRUE,row.names=1,check.names = FALSE)
+
+    # Grabbing just the infnat gut microbiota at baseline
+    taxaTableMom6 <- taxaTable[,grepl("Mom.6",colnames(taxaTable))] #either chance this line or create 2d loop
+    myT <- t(taxaTableMom6)
+    totalReads <- colSums(myT)
+    
+    # Normalzing sequences at each taxanomic level
+    myTLogged <- log10((myT/(rowSums(myT) + 1)) * (sum(rowSums(myT))/nrow(myT)) + 1)
+    
+    # Filtering normalized sequences at each taxanomic level
+    #totalReadsFiltered <- totalReads[totalReads >= 10]
+    #myT3 <- myTLogged[ ,colnames(myTLogged) %in% names(totalReadsFiltered)]
+    myT3 <- myTLogged 
+    
+    # Filtering normalized sequences (that meet some threshold of presence across samples)
+    myT4 <- myT3[ ,(colSums(myT3 == 0) / nrow(myT3)) <= 0.9] # Removing bacteria that are observed in <= 10% of samples
+    myT5 <- as.data.frame(myT4)
+    
+    # Extracting ID number using character positions (e.g., 10 to 13)
+    myT5$dyad_id <- substr(row.names(myT5),10,13)
+    
+    # Grabbing just the infnat gut microbiota at baseline
+    taxaTableMom1 <- taxaTable[,grepl("Mom.Bl",colnames(taxaTable))] #either chance this line or create 2d loop
+    myS <- t(taxaTableMom1)
+    totalReads <- colSums(myS)
+    
+    # Normalzing sequences at each taxanomic level
+    mySLogged <- log10((myS/(rowSums(myS) + 1)) * (sum(rowSums(myS))/nrow(myS)) + 1)
+    
+    # Filtering normalized sequences at each taxanomic level
+    #totalReadsFiltered <- totalReads[totalReads >= 10]
+    #myT3 <- myTLogged[ ,colnames(myTLogged) %in% names(totalReadsFiltered)]
+    myS3 <- mySLogged 
+    
+    # Filtering normalized sequences (that meet some threshold of presence across samples)
+    myS4 <- myS3[ ,(colSums(myS3 == 0) / nrow(myS3)) <= 0.9] # Removing bacteria that are observed in <= 10% of samples
+    myS5 <- as.data.frame(myS4)
+    
+    # Extracting ID number using character positions (e.g., 10 to 13)
+    myS5$dyad_id <- substr(row.names(myS5),10,13)
+    
+    ##CREATING CHANGE DATASET  myT5 - myS5 (microbiome6m - microbiome1m)
+    #creating same number of rows 
+    ids6 <- myT5$dyad_id
+    ids1 <- myS5$dyad_id
+    microbiome6m <- myT5 %>% filter(dyad_id %in% ids6,dyad_id %in% ids1)
+    microbiome1m <- myS5 %>% filter(dyad_id %in% ids6,dyad_id %in% ids1)
+    microbiome1m <-microbiome1m[order(microbiome1m$dyad_id),]
+    microbiome6m <-microbiome6m[order(microbiome6m$dyad_id),]
+    #check if dyad ids are the same 
+    #microbiome6m$dyad_id == microbiome1m$dyad_id
+    
+    #creating same number of columns 
+    
+    taxa6 <- microbiome6m %>% names()
+    taxa1 <- microbiome1m %>% names()
+    commonTaxa <- intersect(taxa6,taxa1)
+    microbiome6m <-  microbiome6m %>% select(all_of(commonTaxa))
+    microbiome1m <-  microbiome1m %>% select(all_of(commonTaxa))
+    
+    microbiome6m <- microbiome6m %>% select(-dyad_id)
+    microbiome1m <- microbiome1m %>% select(-dyad_id)
+    microbiomeChange <- microbiome6m - microbiome1m
+    microbiomeChange$dyad_id <- substr(row.names(microbiomeChange),10,13)
+    microbiomeChange$dyad_id <- microbiomeChange$dyad_id %>% as.numeric()
+    
+    microbiome1 <- microbiome1m
+    microbiome1$dyad_id <- substr(row.names(microbiome1),10,13)
+    microbiome1$dyad_id <- microbiome1$dyad_id %>% as.numeric()
+  
+  
+  # Merging the microbiota data with the metadata of interest at relevant timepoint, below is 24-month as example
+  taxaMeta <- merge(dataSetAv,microbiomeChange,by="dyad_id")
+  taxaMeta1 <- merge(dataSet1m, microbiome1, by="dyad_id")
+  
+  ########### ########### ########### ########### ########### ########### ########### ########### ########### 
+  # Nested regression loop for microbiota analysis. Loops through each taxanomic level
+  ########### ########### ########### ########### ########### ########### ########### ########### ########### 
+  
+  # Creates a list, makes it a characters and set it to empty
+  exposureNamesList <- character(0)
+  
+  # Need to ALWAYS verify this is using the correct names based on our dataset
+  allExposures <- names(taxaMeta)[(length(dataSetAv) + 1):(length(taxaMeta))]
+  
+  # Regression loop
+  for(variableOfInterest in variableList)
+  {
+    pValList <- numeric(0)
+    exposureBetaList <- numeric(0)
+    lowerList <- numeric(0)
+    upperList <- numeric(0)
+    
+  #pdf(file = paste0(meta2,"plots/BSImicrobiomeChange_",taxa,"_",variableOfInterest,"_lm_withCovariates.pdf",sep=""))
+    
+  # Need to ALWAYS verify this is using the correct names based on our dataset
+  for(i in (length(dataSetAv) + 1):(length(taxaMeta)))
+  {
+  
+    # Printing the name of the taxa we are looking at in each iteration of this nested loop
+    print(names(taxaMeta)[i])
+    
+    # Creating the model you will run (with covariates) - mae sure to consider what x and  y should be
+    modelForm <- as.formula(paste("thisMicrobe", "~thisVariable+baselineAdjust+age+BMI+energy+exercise+SES")) #add BMI 
+    
+    # Creates this data instance to use for linear regression analysis
+    
+    thisDataInstance <- na.omit(data.frame(dyad_id=taxaMeta$dyad_id,
+                                           thisMicrobe=taxaMeta[,i],
+                                           thisVariable=taxaMeta[,names(taxaMeta) %in% variableOfInterest],
+                                           baselineAdjust=taxaMeta1[,names(taxaMeta1) %in% variableOfInterest],
+                                           age = taxaMeta$mother_age,
+                                           BMI=taxaMeta$mom_BMI,
+                                           energy = taxaMeta$m_ener_Mom,
+                                           exercise = taxaMeta$exercise_r,
+                                           SES = taxaMeta$SES_r))
+    
+    # Running the linear regression analysis
+    modelInfo <- lm(modelForm, data = thisDataInstance)
+    print("MODELFORM")
+    print(modelForm)
+    # Creating a list of coefficent names and values
+    coefs <- coef(modelInfo)
+    
+    # Generating the 95% CIs for 'thisMicrobe' beta coefficent 
+    ci_est <- confint(modelInfo, 'thisVariable', level=0.95)
+    
+    # Grabbing and storing the upper and lower 95% CI values in a list
+    lower_ci_est <- ci_est[1]
+    lowerList[[length(lowerList)+1]] <- lower_ci_est
+    upper_ci_est <- ci_est[2]
+    upperList[[length(upperList)+1]] <- upper_ci_est
+    
+    # Grabbing and storing the beta value for "thisMicrobe" in a list
+    thisBeta <- format(coefs["thisVariable"],digits=3)
+    exposureBetaList[[length(exposureBetaList)+1]] <- thisBeta
+    
+    # Grabbing and storing the p-value for the beta for "thisMicrobe" in a list
+    pVal <- format.pval(coef(summary(modelInfo))["thisVariable",4],digits=3)
+    pValList[[length(pValList)+1]] <- pVal
+    
+    # Creating plots
+    
+  }
+  graphics.off()
+  adjPvals <- p.adjust(pValList,method = "BH")
+  allExposures <- cbind(allExposures,exposureBetaList, lowerList, upperList, pValList,adjPvals);
+  exposureNamesList <- cbind(exposureNamesList,paste(variableOfInterest,"beta",sep="_"),paste(variableOfInterest,"lower_estimate_beta",sep="_"),paste(variableOfInterest,"upper_estimate_beta",sep="_"),paste(variableOfInterest,"pval",sep="_"),paste(variableOfInterest,"adj_pval",sep="_"))
+  
+  }
+  allExposures <- data.frame(allExposures)
+  names(allExposures) <- c("Taxa",exposureNamesList)
+  #write.table(allExposures,paste0(meta2,"statisticalTables/185_95_momChange_",taxa,"_Microbiome_lm_withCovariates.txt",sep=""),quote=FALSE, sep="\t",append=FALSE, col.names=TRUE, row.names=FALSE)
+}

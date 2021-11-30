@@ -1,0 +1,257 @@
+---
+title: "Rtextbook"
+author: "Didi T"
+date: "10/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+```{r}
+# *********************** CHAPTER 3 - VISUALIZATION AND GGPLOT ***********************
+
+############### GEOM_POINT PRACTICE #############################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+#basic scatterplot
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy))
+
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy), position ="jitter")
+
+#adding each class of car to be a different color on scatter plot
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, color = class))
+
+#adding each class of car to be a different size on scatter plot - warning generated because class is not ordered
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, size = class))
+
+# combining the last two ggplots
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, size = class, color = class))
+
+# Each class of car is a different shape - only up to 6 shapes!!
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, shape = class))
+
+# difference between color being on the inside and outside of aes - should be on outside 
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, color = "blue"))
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy), color = "blue")
+
+# Other adjustments outside of aes
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy), shape = 24, color = "red", fill = "blue")
+
+# assigning the same variable to two aes 
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, color = class, shape = class))
+
+# using stroke - border size 
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy), size = 1, stroke = 3, fill = 'white', color = 'black', shape = 21)
+
+# facet wrap one variable 
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) + 
+  facet_wrap(~ class, nrow = 1) #can also use ncol
+
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) + 
+  facet_grid(~ class) #can also use ncol
+
+# facet wrap two variables 
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) + 
+  facet_grid(drv ~ cyl)
+
+# can use a period to orient faceting 
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) + 
+  facet_grid(. ~ drv) #default 
+
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) + 
+  facet_grid(drv ~ .) #rotated 
+
+############### GEOM_SMOOTH PRACTICE ############################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+# basic template 
+ggplot(data = mpg) + 
+  geom_smooth(mapping = aes(x = displ, y = hwy))
+
+# using geom_smooth and geom_point together 
+ggplot(data = mpg) + 
+  geom_smooth(mapping = aes(x = displ, y = hwy)) + 
+  geom_point(mapping = aes(x = displ, y = hwy))
+
+ggplot(data = mpg) + 
+  geom_smooth(mapping = aes(x = displ, y = hwy, linetype = drv, color = drv)) + 
+  geom_point(mapping = aes(x = displ, y = hwy, color = drv))
+
+# USING FILTER WITHIN GGPLOT ************** MULTIPLE TREND LINES *******************************
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point(mapping = aes(color = class)) + 
+  geom_smooth(data = filter(mpg, class == "subcompact"),  color = 'red' , se = FALSE) + 
+  geom_smooth(data = filter(mpg, class == "midsize"),  color = 'blue' , se = TRUE)
+
+
+############### GEOM_BAR PRACTICE ###############################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+# BASIC 
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut))
+# basic statistical transformation for geom_bar is stat_count 
+ggplot(data = diamonds) + 
+  stat_count(mapping = aes(x = cut))
+
+# bar graph of proportion 
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, y = stat(prop), group = 1))
+
+# bar graph with each bar split by a categorical variable 
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = clarity))
+
+############### STAT_SUMMARY and GEOM_BOXPLOT ###################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+# stat summary 
+ggplot(data = diamonds) + 
+  stat_summary(
+    mapping = aes(x = cut, y = depth),
+    fun.min = min,
+    fun.max = max,
+    fun = median)
+
+# Boxplot 
+ggplot(data = diamonds) + 
+  geom_boxplot(mapping = aes(x = cut, y=depth), fill='blue', color='green')
+
+############### GEOM_HISTOGRAM ##################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+# Basic histogram 
+ggplot(data = iris) + 
+  geom_histogram(mapping = aes(x=Sepal.Width), binwidth = 0.1, fill = 'red', color = 'darkred')
+
+# Using a categorical variable for fill 
+ggplot(data = iris) + 
+  geom_histogram(mapping = aes(x=Sepal.Width, fill = Species), binwidth = 0.1, color = "black")
+
+# reordering categorical variable to visualize better 
+iris$speciesOrdered <- ordered(iris$Species, levels=c('setosa', 'virginica', 'versicolor'))	
+
+ggplot(data = iris) + 
+  geom_histogram(mapping = aes(x=Sepal.Width, fill = speciesOrdered), binwidth = 0.1, color = "black")
+
+# changing position 
+
+ggplot(data = iris) + 
+  geom_histogram(mapping = aes(x=Sepal.Width, fill = speciesOrdered), binwidth = 0.1, color = "black", position = "dodge") 
+
+ggplot(data = iris) + 
+  geom_histogram(mapping = aes(x=Sepal.Width, fill = speciesOrdered), binwidth = 0.1, color = "black", alpha = 1/2, position = "identity") 
+
+ggplot(data = iris) + 
+  geom_histogram(mapping = aes(x=Sepal.Width, fill = speciesOrdered), binwidth = 0.19, color = "black", position = "fill") 
+
+
+###############  MAPPING ########################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+library(maps)
+
+italy <- map_data("italy")
+
+ggplot(italy, aes(long, lat, group = group)) +
+  geom_polygon(fill = "slategray", colour = "black")
+
+ggplot(italy, aes(long, lat, group = group)) +
+  geom_polygon(fill = "lightgreen", colour = "black") +
+  coord_quickmap()
+
+
+#********************************************ONE VARIABLE CONTINUOUS EXAMPLES***************************************************#
+#################################################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+# Using geom area 
+ggplot(data = iris) + 
+  geom_area(mapping = aes(x=Sepal.Width, color = Species), alpha = 1/2, fill = "black", stat = 'bin', binwidth = .1)
+
+# Using geom density 
+ggplot(data = iris) + 
+  geom_density(mapping = aes(x=Sepal.Width, color = Species, linetype = Species), fill = 'pink', alpha = 1/3, size =3)
+
+# Using geom dot plot 
+ggplot(data = iris) + 
+  geom_dotplot(mapping = aes(x=Petal.Length, fill = speciesOrdered), binwidth = .2)
+
+#Using geom freqpoly
+ggplot(data = iris) + 
+  geom_freqpoly(mapping = aes(y=Petal.Length, color = Species), size = .5, binwidth =.1)
+
+#geom histogram
+
+#********************************************TWO VARIABLE BOTH CONTINUOUS EXAMPLES**********************************************#
+#################################################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+# geom quantile
+ggplot(data = mpg) + 
+  geom_quantile(mapping = aes(x = displ, y = hwy), size = 1) 
+
+# geom_text 
+ggplot(data = mpg) + 
+  geom_text(mapping = aes(x = displ, y = hwy, label = class, color = class), size = 2.5)
+
+
+#********************************************DISCRETE X CONTINUOUS Y EXAMPLES **************************************************#
+#################################################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+#geom bar
+ggplot(data = mpg) + 
+  geom_bar(stat = "identity", mapping = aes(x = class, y = hwy), fill = 'slategray') 
+
+# box plot 
+ggplot(data = mpg) + 
+  geom_boxplot(mapping = aes(x = class, y = hwy), fill = 'slategray') 
+
+ggplot(data = mpg) + 
+  geom_dotplot(binaxis = "y", stackdir = "center", mapping = aes(x = class, y = hwy, fill = class), binwidth =1) 
+
+ggplot(data = mpg) + 
+  geom_violin( mapping = aes(x = class, y = hwy, fill = class))
+
+
+############### LABELS ##########################################################################################################
+#################################################################################################################################
+#################################################################################################################################
+
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) + 
+  labs(title = "title", x = "x label", y = "y label")
+
+```
+
+
+
